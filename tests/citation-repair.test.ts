@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   repairCitationText,
+  repairWikilinkText,
   repairWorkspaceCitations,
 } from "../src/citation-repair.js";
 
@@ -86,6 +87,46 @@ describe("citation repair", () => {
     const second = repairCitationText(first.text, sources, "page.md");
     expect(second.text).toBe(first.text);
     expect(second.repairs).toEqual([]);
+  });
+
+  it("maps unique wikilink aliases and converts missing targets to plain text", () => {
+    const result = repairWikilinkText(
+      "See [[Company Strategy Comparison]], [[Missing Topic]], and [[Unknown|visible label]].",
+      [
+        {
+          filename: "company-strategy-comparison.md",
+          title: "Company Strategy Comparison",
+        },
+        {
+          filename: "supply-chain-and-geopolitical-risk.md",
+          title: "Supply Chain and Geopolitical Risk",
+        },
+      ],
+      "page.md",
+    );
+    expect(result.text).toBe(
+      "See [[company-strategy-comparison]], Missing Topic, and visible label.",
+    );
+    expect(result.repairs.map((repair) => repair.reason)).toEqual([
+      "unique-wikilink-alias",
+      "plain-text-dangling-wikilink",
+      "plain-text-dangling-wikilink",
+    ]);
+  });
+
+  it("leaves canonical existing wikilinks unchanged", () => {
+    const result = repairWikilinkText(
+      "See [[company-strategy-comparison]].",
+      [
+        {
+          filename: "company-strategy-comparison.md",
+          title: "Company Strategy Comparison",
+        },
+      ],
+      "page.md",
+    );
+    expect(result.text).toBe("See [[company-strategy-comparison]].");
+    expect(result.repairs).toEqual([]);
   });
 
   it("repairs workspace pages and records page line numbers", async () => {

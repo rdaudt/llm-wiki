@@ -15,7 +15,9 @@ export interface CitationRepair {
   reason:
     | "normalized-syntax"
     | "unique-filename-alias"
-    | "removed-invalid-range";
+    | "removed-invalid-range"
+    | "unique-wikilink-alias"
+    | "plain-text-dangling-wikilink";
 }
 
 export interface CitationRepairResult {
@@ -25,6 +27,7 @@ export interface CitationRepairResult {
 }
 
 const markerPattern = /\^\[([^\]\n]+)\]/g;
+const wikilinkPattern = /\[\[([^\]\n]+)\]\]/g;
 const entryPattern =
   /^(.*?)(?:(?::\s*(?:lines?\s*)?(\d+)(?:\s*-\s*(\d+))?)|(?:#L(\d+)(?:\s*-\s*L(\d+))?))$/i;
 const multiRangePattern =
@@ -59,6 +62,59 @@ function splitEntries(inner: string): string[] {
 
 function markerLine(text: string, offset: number): number {
   return text.slice(0, offset).split("\n").length;
+}
+
+export interface WikiPageTarget {
+  filename: string;
+  title: string;
+}
+
+export function repairWikilinkText(
+  text: string,
+  pages: WikiPageTarget[],
+  page: string,
+): { text: string; repairs: CitationRepair[] } {
+  const repairs: CitationRepair[] = [];
+  wikilinkPattern.lastIndex = 0;
+  const transformed = text.replace(
+    wikilinkPattern,
+    (before, inner: string, offset: number) => {
+      const [targetWithAnchor, explicitLabel] = inner.split("|", 2);
+      const target = targetWithAnchor!.split("#", 1)[0]!.trim();
+      const display = (explicitLabel ?? target).trim();
+      const targetAlias = alias(target);
+      const matches = pages.filter((candidate) => {
+        const stem = candidate.filename.replace(/\.md$/i, "");
+        return alias(stem) === targetAlias || alias(candidate.title) === targetAlias;
+      });
+      if (matches.length === 1) {
+        const canonical = matches[0]!.filename.replace(/\.md$/i, "");
+        const after =
+          explicitLabel === undefined
+            ? `[[${canonical}]]`
+            : `[[${canonical}|${display}]]`;
+        if (after !== before) {
+          repairs.push({
+            page,
+            line: markerLine(text, offset),
+            before,
+            after,
+            reason: "unique-wikilink-alias",
+          });
+        }
+        return after;
+      }
+      repairs.push({
+        page,
+        line: markerLine(text, offset),
+        before,
+        after: display,
+        reason: "plain-text-dangling-wikilink",
+      });
+      return display;
+    },
+  );
+  return { text: transformed, repairs };
 }
 
 export function repairCitationText(
@@ -198,15 +254,31 @@ export async function repairWorkspaceCitations(
     ...(await markdownFiles(path.join(root, "wiki", "concepts"))),
     ...(await markdownFiles(path.join(root, "wiki", "queries"))),
   ];
+  const pageTargets = await Promise.all(
+    pages.map(async (pagePath) => {
+      const content = await readFile(pagePath, "utf8");
+      const title =
+        content.match(/^title:\s*["']?(.+?)["']?\s*$/m)?.[1] ??
+        path.basename(pagePath, ".md");
+      return { filename: path.basename(pagePath), title };
+    }),
+  );
   const repairs: CitationRepair[] = [];
   const unresolved: QualityFinding[] = [];
   for (const pagePath of pages) {
     const relativePage = path.relative(root, pagePath).replaceAll("\\", "/");
     const content = await readFile(pagePath, "utf8");
-    const result = repairCitationText(content, sources, relativePage);
-    if (result.text !== content) await writeFile(pagePath, result.text, "utf8");
-    repairs.push(...result.repairs);
-    unresolved.push(...result.unresolved);
+    const citationResult = repairCitationText(content, sources, relativePage);
+    const wikilinkResult = repairWikilinkText(
+      citationResult.text,
+      pageTargets,
+      relativePage,
+    );
+    if (wikilinkResult.text !== content) {
+      await writeFile(pagePath, wikilinkResult.text, "utf8");
+    }
+    repairs.push(...citationResult.repairs, ...wikilinkResult.repairs);
+    unresolved.push(...citationResult.unresolved);
   }
   return { repairs, unresolved };
 }

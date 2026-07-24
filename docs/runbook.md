@@ -12,7 +12,7 @@ Complete the controls in order:
 2. **Ingest sources** invokes LLM-Wiki and records its actual source filenames.
 3. **Compile wiki** invokes OpenAI and checkpoints pages without running lint.
 4. **Run quality checks** runs local lint/evaluation and retains exact findings.
-5. **Repair citations** applies only auditable deterministic transformations.
+5. **Repair quality issues** applies only auditable deterministic transformations.
 6. **Publish baseline wiki** is enabled only after citation quality passes.
 
 SEC fetches and model operations are networked and potentially cost-bearing.
@@ -35,7 +35,7 @@ Do not refetch or ingest. Inspect the quality table:
 - `malformed-claim-citation` means the marker is not `^[file.md]`,
   `^[file.md:N-N]`, or `^[file.md#LN-LN]`.
 
-Use **Repair citations** only when the mapping is deterministic. The repair
+Use **Repair quality issues** only when the mapping is deterministic. The repair
 artifact records page, line, before, after, and reason. Unknown or ambiguous
 sources remain unresolved. Run quality again. Use **Compile wiki** if the model
 output must be replaced.
@@ -62,4 +62,3 @@ without making SEC or OpenAI calls.
 
 The live release test is manual: fetch, ingest, compile, inspect or repair,
 quality, publish, browse both viewers, query, restart, and confirm persistence.
-

@@ -37,7 +37,7 @@ def phase_controls(build: dict[str, Any]) -> list[PhaseControl]:
         ("ingest", "Ingest sources"),
         ("compile", "Compile wiki"),
         ("quality", "Run quality checks"),
-        ("repair_citations", "Repair citations"),
+        ("repair_citations", "Repair quality issues"),
         ("publish", "Publish baseline wiki"),
     ]
     return [

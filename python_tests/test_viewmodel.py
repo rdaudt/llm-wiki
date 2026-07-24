@@ -72,7 +72,7 @@ def test_phase_controls_follow_server_available_actions() -> None:
         "Ingest sources",
         "Compile wiki",
         "Run quality checks",
-        "Repair citations",
+        "Repair quality issues",
         "Publish baseline wiki",
     ]
     assert {item.action for item in controls if item.enabled} == {

@@ -43,7 +43,7 @@ def test_empty_state_offers_staged_controls_and_native_viewer(adapter: None) -> 
         "Ingest sources",
         "Compile wiki",
         "Run quality checks",
-        "Repair citations",
+        "Repair quality issues",
         "Publish baseline wiki",
     ]
     assert app.button[0].disabled

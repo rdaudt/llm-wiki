@@ -39,7 +39,7 @@ Only Streamlit opens automatically.
 2. **Ingest sources** records the exact filenames returned by LLM-Wiki.
 3. **Compile wiki** checkpoints generated pages without running citation lint.
 4. **Run quality checks** retains exact page, line, marker, rule, and message data.
-5. Use **Repair citations** for conservative deterministic fixes, or recompile.
+5. Use **Repair quality issues** for conservative deterministic fixes, or recompile.
 6. Run quality again, then **Publish baseline wiki** when it passes.
 7. Browse published pages and ask the two baseline questions.
 8. Compile the NVIDIA quarterly delta and ask the third question.
@@ -68,4 +68,3 @@ Verification checks credentials, SEC contact, runtime versions, dependencies,
 loopback ports, TypeScript build/tests, and Python tests/lint. It performs no
 SEC request and no paid model call. The full live workflow remains a manual,
 networked, cost-bearing release test.
-
