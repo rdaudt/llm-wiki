@@ -291,6 +291,7 @@ describe("live-only adapter", () => {
       runQuality: vi.fn(),
       getLatestQuality: vi.fn(),
       getArtifact: vi.fn(),
+      runPublish: vi.fn(),
     };
     const app = createApp({
       root: "unused",

@@ -90,6 +90,7 @@ export interface StagedBuildService {
   runQuality(buildId: string, operationId?: string): Promise<BuildState>;
   getLatestQuality(buildId: string): Promise<QualityArtifact>;
   getArtifact(buildId: string, artifactPath: string): Promise<unknown>;
+  runPublish(buildId: string): Promise<BuildState>;
 }
 
 function errorPayload(error: unknown): SanitizedError {
@@ -113,9 +114,66 @@ export function createApp(options: AppOptions) {
   const app = express();
   const workspaceRoot = resolve(options.root, "var", "wiki");
   const wiki = options.wiki ?? new CompilerClient(workspaceRoot);
+  const stagedBaselineExecutor: OperationExecutor = async (_type, report, signal) => {
+    const build = await options.buildService!.getOrCreateBaseline();
+    for (;;) {
+      if (signal.aborted) throw new Error("operation deadline exceeded");
+      const current = await options.buildService!.getBuild(build.buildId);
+      if (current.stage === "published") return current;
+      if (current.stage === "empty") {
+        report("fetch");
+        await options.buildService!.runPhase(
+          build.buildId,
+          "fetch",
+          randomUUID(),
+          signal,
+        );
+        continue;
+      }
+      if (current.stage === "fetched") {
+        report("ingest");
+        await options.buildService!.runPhase(
+          build.buildId,
+          "ingest",
+          randomUUID(),
+          signal,
+        );
+        continue;
+      }
+      if (current.stage === "ingested") {
+        report("compile");
+        await options.buildService!.runPhase(
+          build.buildId,
+          "compile",
+          randomUUID(),
+          signal,
+        );
+        continue;
+      }
+      if (current.qualityStatus === "not_run") {
+        report("quality");
+        await options.buildService!.runQuality(build.buildId, randomUUID());
+        continue;
+      }
+      if (current.qualityStatus === "failed") {
+        const quality = await options.buildService!.getLatestQuality(build.buildId);
+        const citationCount = quality.findings.filter((finding) =>
+          finding.rule.toLowerCase().includes("citation"),
+        ).length;
+        throw new Error(
+          `Citation quality failed with ${citationCount} finding(s); use advanced build controls`,
+        );
+      }
+      report("publish");
+      return options.buildService!.runPublish(build.buildId);
+    }
+  };
   const executor =
     options.operationExecutor ??
-    ((type, report, signal) => executeInWorker(workspaceRoot, type, report, signal));
+    ((type, report, signal) =>
+      type === "baseline" && options.buildService
+        ? stagedBaselineExecutor(type, report, signal)
+        : executeInWorker(workspaceRoot, type, report, signal));
   const mutationLock = new AsyncLock();
   const operations = new Map<string, OperationRecord>();
   const idempotency = new Map<string, string>();
@@ -372,6 +430,8 @@ export function createApp(options: AppOptions) {
         record.result =
           action === "quality"
             ? await options.buildService!.runQuality(buildId, operationId)
+            : action === "publish"
+              ? await options.buildService!.runPublish(buildId)
             : await options.buildService!.runPhase(
                 buildId,
                 action,

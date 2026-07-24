@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import path from "node:path";
 import type {
   BuildAction,
   BuildState,
@@ -20,6 +21,11 @@ export type QualityRunner = (workspaceRoot: string) => Promise<{
   evaluation: unknown;
 }>;
 
+export type WorkspacePublisher = (
+  sourceRoot: string,
+  targetRoot: string,
+) => Promise<void>;
+
 export interface BuildView extends BuildState {
   availableActions: BuildAction[];
 }
@@ -29,6 +35,7 @@ export class BuildService {
     readonly store: BuildStore,
     private readonly execute: BuildPhaseExecutor,
     private readonly qualityRunner?: QualityRunner,
+    private readonly publisher?: WorkspacePublisher,
   ) {}
 
   async getOrCreateBaseline(): Promise<BuildState> {
@@ -63,6 +70,12 @@ export class BuildService {
       }, signal);
       const next = this.nextState(current, result);
       const committed = await this.store.commitPhase(transaction, next);
+      if (result.action === "compile" && this.publisher) {
+        await this.publisher(
+          path.join(this.store.checkpointRoot(buildId, committed.checkpointId!), "workspace"),
+          path.join(this.store.varRoot, "staging-wiki"),
+        );
+      }
       if (result.action !== "repair_citations") return committed;
       const latestRepairArtifact = await this.store.writeArtifact(
         buildId,
@@ -74,7 +87,14 @@ export class BuildService {
           unresolved: result.unresolved,
         },
       );
-      return this.store.updateState({ ...committed, latestRepairArtifact });
+      const updated = await this.store.updateState({ ...committed, latestRepairArtifact });
+      if (this.publisher) {
+        await this.publisher(
+          path.join(this.store.checkpointRoot(buildId, updated.checkpointId!), "workspace"),
+          path.join(this.store.varRoot, "staging-wiki"),
+        );
+      }
+      return updated;
     } catch (error) {
       await this.store.failPhase(transaction, {
         operationId,
@@ -139,6 +159,24 @@ export class BuildService {
 
   async getArtifact(buildId: string, artifactPath: string): Promise<unknown> {
     return this.store.readArtifact(buildId, artifactPath);
+  }
+
+  async runPublish(buildId: string): Promise<BuildState> {
+    const current = await this.store.load(buildId);
+    if (current.stage !== "compiled" || current.qualityStatus !== "passed") {
+      throw new Error("Publish requires a quality-passed compiled checkpoint");
+    }
+    if (!current.checkpointId) throw new Error("Compiled checkpoint is missing");
+    if (!this.publisher) throw new Error("Workspace publisher is not configured");
+    await this.publisher(
+      path.join(this.store.checkpointRoot(buildId, current.checkpointId), "workspace"),
+      path.join(this.store.varRoot, "wiki"),
+    );
+    return this.store.updateState({
+      ...current,
+      stage: "published",
+      publishedAt: new Date().toISOString(),
+    });
   }
 
   private nextState(current: BuildState, result: BuildWorkerResult): BuildState {

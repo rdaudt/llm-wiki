@@ -151,4 +151,42 @@ describe("BuildService phase boundaries", () => {
       }),
     ]);
   });
+
+  it("publishes only a quality-passed checkpoint", async () => {
+    const execute = async (request: BuildWorkerRequest): Promise<BuildWorkerResult> => {
+      if (request.action === "fetch") return { action: "fetch", filings: 3 };
+      if (request.action === "ingest") return { action: "ingest", sourceFiles: [] };
+      return {
+        action: "compile",
+        pages: [
+          "ai-semiconductor-landscape",
+          "company-strategy-comparison",
+          "supply-chain-and-geopolitical-risk",
+        ],
+      };
+    };
+    const root = await mkdtemp(path.join(tmpdir(), "llm-wiki-publish-service-"));
+    const store = new BuildStore(root);
+    const publisher = vi.fn(async () => undefined);
+    const builds = new BuildService(
+      store,
+      execute,
+      async () => ({ lint: { results: [] }, evaluation: {} }),
+      publisher,
+    );
+    const build = await builds.getOrCreateBaseline();
+    await builds.runPhase(build.buildId, "fetch", "publish-fetch");
+    await builds.runPhase(build.buildId, "ingest", "publish-ingest");
+    await builds.runPhase(build.buildId, "compile", "publish-compile");
+    await expect(builds.runPublish(build.buildId)).rejects.toThrow(/quality/i);
+
+    await builds.runQuality(build.buildId, "publish-quality");
+    const published = await builds.runPublish(build.buildId);
+    expect(published.stage).toBe("published");
+    expect(published.publishedAt).toBeTruthy();
+    expect(publisher).toHaveBeenLastCalledWith(
+      expect.stringContaining("workspace"),
+      path.join(root, "wiki"),
+    );
+  });
 });
