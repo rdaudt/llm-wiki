@@ -1,3 +1,4 @@
+import os
 import subprocess
 import time
 import urllib.request
@@ -9,12 +10,15 @@ from streamlit.testing.v1 import AppTest
 
 @pytest.fixture(scope="module")
 def adapter() -> None:
+    environment = os.environ.copy()
+    environment.pop("OPENAI_API_KEY", None)
     process = subprocess.Popen(  # noqa: S603
         ["node", "--import", "tsx", "src/server.ts"],  # noqa: S607
         cwd=Path(__file__).parents[1],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         creationflags=subprocess.CREATE_NO_WINDOW,
+        env=environment,
     )
     deadline = time.monotonic() + 20
     while time.monotonic() < deadline:
@@ -31,17 +35,18 @@ def adapter() -> None:
     process.wait(timeout=10)
 
 
-def test_guided_page_renders_four_sections(adapter: None) -> None:
+def test_empty_state_offers_staged_controls_and_native_viewer(adapter: None) -> None:
     app = AppTest.from_file("app/streamlit_app.py", default_timeout=10).run()
     assert not app.exception
-    headings = [heading.value for heading in app.header]
-    assert headings[:4] == [
-        "1. From documents to durable knowledge",
-        "2. What the wiki already understands",
-        "3. New evidence changes understanding",
-        "4. Trust and reuse",
+    assert [button.label for button in app.button[:6]] == [
+        "Fetch and normalize filings",
+        "Ingest sources",
+        "Compile wiki",
+        "Run quality checks",
+        "Repair citations",
+        "Publish baseline wiki",
     ]
-    assert app.button[0].label == "Add NVIDIA quarterly evidence"
-    app.button[0].click().run()
-    assert any("Replay of verified run" in warning.value for warning in app.warning)
-    assert any(subheader.value == "Claim change 1" for subheader in app.subheader)
+    assert app.button[0].disabled
+    links = [link.body for link in app.markdown]
+    assert any("Open browsable wiki" in body for body in links)
+    assert any("OPENAI_API_KEY" in caption.value for caption in app.caption)

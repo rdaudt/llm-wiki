@@ -441,6 +441,10 @@ export function createApp(options: AppOptions) {
         if (timedOut) throw new Error("operation deadline exceeded");
         record.status = "completed";
         record.completedAt = new Date().toISOString();
+        if (action === "publish") {
+          knowledgeStage = "baseline";
+          lastError = undefined;
+        }
       } catch (error) {
         record.status = timedOut ? "timed_out" : "failed";
         record.completedAt = new Date().toISOString();
