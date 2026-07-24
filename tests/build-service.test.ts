@@ -86,4 +86,69 @@ describe("BuildService phase boundaries", () => {
     expect(failures).toHaveLength(1);
     expect(failures[0]?.diagnostics).toEqual([]);
   });
+
+  it("retains exact citation findings without rolling back compiled pages", async () => {
+    const execute = async (request: BuildWorkerRequest): Promise<BuildWorkerResult> => {
+      if (request.action === "fetch") return { action: "fetch", filings: 3 };
+      if (request.action === "ingest") return { action: "ingest", sourceFiles: [] };
+      return {
+        action: "compile",
+        pages: [
+          "ai-semiconductor-landscape",
+          "company-strategy-comparison",
+          "supply-chain-and-geopolitical-risk",
+        ],
+      };
+    };
+    const root = await mkdtemp(path.join(tmpdir(), "llm-wiki-quality-"));
+    const store = new BuildStore(root);
+    const quality = vi.fn(async () => ({
+      lint: {
+        results: [
+          {
+            rule: "broken-citation",
+            severity: "error",
+            file: "wiki/concepts/company-strategy-comparison.md",
+            line: 42,
+            message:
+              "Broken citation ^[NVIDIA 10-K:34-40] — source file not found",
+          },
+          {
+            rule: "malformed-claim-citation",
+            severity: "error",
+            file: "wiki/concepts/ai-semiconductor-landscape.md",
+            line: 67,
+            message:
+              "Malformed claim citation ^[amd.md: lines 10-20] — expected file.md:N-N",
+          },
+        ],
+      },
+      evaluation: { health: 92 },
+    }));
+    const builds = new BuildService(store, execute, quality);
+    const build = await builds.getOrCreateBaseline();
+    await builds.runPhase(build.buildId, "fetch", "quality-fetch");
+    await builds.runPhase(build.buildId, "ingest", "quality-ingest");
+    const compiled = await builds.runPhase(build.buildId, "compile", "quality-compile");
+
+    const checked = await builds.runQuality(build.buildId, "quality-check");
+    expect(checked.qualityStatus).toBe("failed");
+    expect(checked.checkpointId).toBe(compiled.checkpointId);
+
+    const artifact = await builds.getLatestQuality(build.buildId);
+    expect(artifact.findings).toEqual([
+      expect.objectContaining({
+        rule: "broken-citation",
+        page: "wiki/concepts/company-strategy-comparison.md",
+        line: 42,
+        citation: "^[NVIDIA 10-K:34-40]",
+      }),
+      expect.objectContaining({
+        rule: "malformed-claim-citation",
+        page: "wiki/concepts/ai-semiconductor-landscape.md",
+        line: 67,
+        citation: "^[amd.md: lines 10-20]",
+      }),
+    ]);
+  });
 });

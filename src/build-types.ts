@@ -55,3 +55,20 @@ export type BuildWorkerResult =
   | { action: "compile"; pages: string[] }
   | { action: "repair_citations"; repairs: unknown[]; unresolved: unknown[] };
 
+export interface QualityFinding {
+  rule: string;
+  severity: string;
+  page: string;
+  line?: number;
+  citation?: string;
+  message: string;
+}
+
+export interface QualityArtifact {
+  createdAt: string;
+  passed: boolean;
+  findings: QualityFinding[];
+  lint: unknown;
+  evaluation: unknown;
+  truncated: boolean;
+}

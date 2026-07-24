@@ -249,6 +249,39 @@ export class BuildStore {
     }
   }
 
+  async writeArtifact(
+    buildId: string,
+    category: string,
+    artifactId: string,
+    value: unknown,
+  ): Promise<string> {
+    checkedIdentifier(category, "artifact category");
+    checkedIdentifier(artifactId, "artifact ID");
+    const relativePath = path.join("artifacts", category, `${artifactId}.json`);
+    await atomicJson(path.join(this.buildRoot(buildId), relativePath), value);
+    return relativePath.replaceAll("\\", "/");
+  }
+
+  async readArtifact(buildId: string, relativePath: string): Promise<unknown> {
+    const normalized = relativePath.replaceAll("\\", "/");
+    if (
+      normalized.startsWith("/") ||
+      normalized.includes("../") ||
+      !normalized.startsWith("artifacts/")
+    ) {
+      throw new Error("Invalid artifact path");
+    }
+    return JSON.parse(
+      await readFile(path.join(this.buildRoot(buildId), normalized), "utf8"),
+    );
+  }
+
+  async updateState(state: BuildState): Promise<BuildState> {
+    const updated = { ...state, updatedAt: new Date().toISOString() };
+    await this.writeState(updated);
+    return updated;
+  }
+
   private async writeState(state: BuildState): Promise<void> {
     const parsed = stateSchema.safeParse(state);
     if (!parsed.success) throw new Error("Invalid build state");
