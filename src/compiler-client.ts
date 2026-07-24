@@ -24,11 +24,14 @@ export class CompilerClient {
   }
 
   query(question: string, save: boolean) {
-    return this.wiki.query(question, { save });
+    return this.wiki.query(question, { save, debug: true });
   }
 
-  async compileDelta(sourceText: string, title: string) {
-    await this.wiki.ingestText({ text: sourceText, title });
-    return this.wiki.compile();
+  ingestText(input: { text: string; title: string }) {
+    return this.wiki.ingestText(input);
+  }
+
+  compile(options: { concurrency: number }) {
+    return this.wiki.compile(options);
   }
 }

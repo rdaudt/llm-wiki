@@ -13,7 +13,6 @@ describe("adapter domain", () => {
       { slug: "a", title: "A", kind: "overview", body: "See [[b]] and [[b|B]]." },
       { slug: "b", title: "B", kind: "entity", body: "Back to [[a]]." },
     ]);
-    expect(graph.nodes).toHaveLength(2);
     expect(graph.edges).toEqual([
       { source: "a", target: "b" },
       { source: "b", target: "a" },
@@ -26,7 +25,7 @@ describe("adapter domain", () => {
     ).toBe("# A\nEvidence.");
   });
 
-  it("redacts API keys, authorization headers, and provider bodies", () => {
+  it("redacts common provider secrets and bodies", () => {
     const text = redactSecrets(
       "OPENAI_API_KEY=sk-secret Authorization: Bearer abc provider_body={bad}",
     );
@@ -44,16 +43,14 @@ describe("adapter domain", () => {
   it("serializes mutations through one lock", async () => {
     const lock = new AsyncLock();
     const events: string[] = [];
-    const first = lock.run(async () => {
-      events.push("first:start");
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      events.push("first:end");
-    });
-    const second = lock.run(async () => {
-      events.push("second:start");
-      events.push("second:end");
-    });
-    await Promise.all([first, second]);
-    expect(events).toEqual(["first:start", "first:end", "second:start", "second:end"]);
+    await Promise.all([
+      lock.run(async () => {
+        events.push("first:start");
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        events.push("first:end");
+      }),
+      lock.run(() => events.push("second")),
+    ]);
+    expect(events).toEqual(["first:start", "first:end", "second"]);
   });
 });

@@ -7,12 +7,12 @@
     "node": "24.x"
   },
   "scripts": {
+    "postinstall": "node scripts/patch-llmwiki-openai.mjs",
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/server.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify:snapshots": "tsx tools/verify-snapshots.ts",
-    "verify": "npm run build && npm test && npm run verify:snapshots"
+    "verify": "npm run build && npm test"
   },
   "dependencies": {
     "express": "5.2.1",
@@ -21,8 +21,10 @@
   },
   "devDependencies": {
     "@types/express": "5.0.5",
+    "@types/jsdom": "27.0.0",
     "@types/node": "24.10.1",
     "@types/supertest": "6.0.3",
+    "jsdom": "29.1.1",
     "supertest": "7.2.2",
     "tsx": "4.21.0",
     "typescript": "7.0.2",

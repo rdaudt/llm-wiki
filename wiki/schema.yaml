@@ -1,19 +1,34 @@
 version: 1
-title: AI Industry Intelligence Wiki
-language: English
-pageKinds:
+defaultKind: concept
+kinds:
   concept:
     description: An industry concept supported by filing evidence.
+    minWikilinks: 0
   entity:
     description: A company, product family, or filing.
+    minWikilinks: 1
   comparison:
     description: Evidence-backed comparison across companies.
-    minimumWikilinks: 2
+    minWikilinks: 2
   overview:
     description: Navigational synthesis across the wiki.
-    minimumWikilinks: 2
-requiredPages:
-  - ai-semiconductor-landscape
-  - company-strategy-comparison
-  - supply-chain-and-geopolitical-risk
-
+    minWikilinks: 3
+seedPages:
+  - title: AI Semiconductor Landscape
+    kind: overview
+    summary: A linked overview of the AI semiconductor market.
+    relatedSlugs:
+      - company-strategy-comparison
+      - supply-chain-and-geopolitical-risk
+  - title: Company Strategy Comparison
+    kind: comparison
+    summary: An evidence-backed comparison of NVIDIA, AMD, and Intel.
+    relatedSlugs:
+      - ai-semiconductor-landscape
+      - supply-chain-and-geopolitical-risk
+  - title: Supply Chain and Geopolitical Risk
+    kind: comparison
+    summary: Shared manufacturing, export-control, and geopolitical risks.
+    relatedSlugs:
+      - ai-semiconductor-landscape
+      - company-strategy-comparison
