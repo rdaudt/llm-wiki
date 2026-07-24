@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "snapshotId": "baseline-verified",
+  "stage": "baseline",
+  "compilerVersion": "1.1.0",
+  "model": "gpt-5-mini-2025-08-07",
+  "embeddingModel": "text-embedding-3-small",
+  "corpusManifestSha256": "c8a680194a037a407986919abb1d31eec7c3e90071ad48b52b0236f02b83331e",
+  "generatedAt": "2026-05-21T18:00:00.000Z",
+  "files": [
+    {
+      "path": "demo/snapshots/baseline/state.json",
+      "sha256": "0935f90bafb909ea616644fb37f5b3cf748cdaebbde9b1a6159f383647534ae8"
+    }
+  ],
+  "status": "verified-replay",
+  "lint": { "errors": 0, "warnings": 0 },
+  "fastEval": { "healthScore": 94, "citationCoverage": 92 },
+  "cleanBuildDurationMs": 0,
+  "observedOpenAICostUsd": 0,
+  "acceptedWarningRationales": []
+}
+

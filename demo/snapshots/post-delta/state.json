@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "stage": "post_delta",
+  "snapshotId": "post-delta-verified",
+  "sources": 4,
+  "pages": 7,
+  "citations": 12,
+  "quality": {
+    "healthScore": 94,
+    "citationCoverage": 92,
+    "errors": 0,
+    "warnings": 0,
+    "brokenCitations": 0,
+    "brokenLinks": 0,
+    "stalePages": 0,
+    "orphanedPages": 0
+  }
+}
+

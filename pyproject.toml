@@ -1,0 +1,33 @@
+[project]
+name = "ai-industry-intelligence-wiki"
+version = "0.1.0"
+requires-python = "==3.12.*"
+dependencies = [
+  "httpx==0.28.1",
+  "plotly==6.5.0",
+  "pydantic==2.12.5",
+  "streamlit==1.52.2",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==9.0.2",
+  "ruff==0.14.10",
+]
+
+[tool.setuptools]
+packages = ["app", "tools"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["python_tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"python_tests/**" = ["S101"]

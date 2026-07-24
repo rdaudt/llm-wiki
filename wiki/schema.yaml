@@ -1,0 +1,19 @@
+version: 1
+title: AI Industry Intelligence Wiki
+language: English
+pageKinds:
+  concept:
+    description: An industry concept supported by filing evidence.
+  entity:
+    description: A company, product family, or filing.
+  comparison:
+    description: Evidence-backed comparison across companies.
+    minimumWikilinks: 2
+  overview:
+    description: Navigational synthesis across the wiki.
+    minimumWikilinks: 2
+requiredPages:
+  - ai-semiconductor-landscape
+  - company-strategy-comparison
+  - supply-chain-and-geopolitical-risk
+
