@@ -43,3 +43,15 @@ export interface FailureArtifact {
   diagnostics: unknown[];
 }
 
+export type BuildWorkerRequest =
+  | { action: "fetch"; buildId: string; targetRoot: string }
+  | { action: "ingest"; buildId: string; targetRoot: string }
+  | { action: "compile"; buildId: string; targetRoot: string }
+  | { action: "repair_citations"; buildId: string; targetRoot: string };
+
+export type BuildWorkerResult =
+  | { action: "fetch"; filings: number }
+  | { action: "ingest"; sourceFiles: BuildSourceFile[] }
+  | { action: "compile"; pages: string[] }
+  | { action: "repair_citations"; repairs: unknown[]; unresolved: unknown[] };
+
