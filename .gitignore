@@ -8,8 +8,6 @@ __pycache__/
 *.pyc
 *.log
 .worktrees/
-var/wiki/
-var/pids/
-var/tmp/
+var/
 coverage/
 dist/

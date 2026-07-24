@@ -12,3 +12,8 @@ def test_process_scripts_own_all_four_demo_ports_and_viewer_pids() -> None:
     assert "staging-viewer.pid" in stop
     assert 'Start-Process "http://127.0.0.1:8501"' in start
     assert 'Start-Process "http://127.0.0.1:4320"' not in start
+
+
+def test_verification_uses_the_pinned_virtual_environment() -> None:
+    verify = Path("scripts/verify-demo.ps1").read_text(encoding="utf-8")
+    assert '.venv\\Scripts\\python.exe' in verify
