@@ -9,7 +9,7 @@ import {
 
 const sources = [
   { filename: "nvidia-2026-10k.md", lines: 100 },
-  { filename: "amd-2026-10k.md", lines: 80 },
+  { filename: "amd-2026-10k.md", lines: 100 },
 ];
 
 describe("citation repair", () => {
@@ -33,6 +33,36 @@ describe("citation repair", () => {
     );
     expect(result.text).toBe("Claim ^[nvidia-2026-10k.md].");
     expect(result.repairs[0]?.reason).toBe("removed-invalid-range");
+  });
+
+  it("expands comma-separated line ranges into accepted same-source entries", () => {
+    const result = repairCitationText(
+      "Claim ^[amd-2026-10k.md:88-89,48,60-62].",
+      sources,
+      "page.md",
+    );
+    expect(result.text).toBe(
+      "Claim ^[amd-2026-10k.md:88-89, amd-2026-10k.md:48-48, amd-2026-10k.md:60-62].",
+    );
+    expect(result.repairs).toEqual([
+      expect.objectContaining({
+        before: "^[amd-2026-10k.md:88-89,48,60-62]",
+        reason: "normalized-syntax",
+      }),
+    ]);
+    expect(result.unresolved).toEqual([]);
+  });
+
+  it("expands comma ranges inside markers that already contain multiple entries", () => {
+    const result = repairCitationText(
+      "Claim ^[amd-2026-10k.md:12-13, amd-2026-10k.md:22-27,39].",
+      sources,
+      "page.md",
+    );
+    expect(result.text).toBe(
+      "Claim ^[amd-2026-10k.md:12-13, amd-2026-10k.md:22-27, amd-2026-10k.md:39-39].",
+    );
+    expect(result.unresolved).toEqual([]);
   });
 
   it("leaves unknown or ambiguous sources unchanged", () => {

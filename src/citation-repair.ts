@@ -27,6 +27,8 @@ export interface CitationRepairResult {
 const markerPattern = /\^\[([^\]\n]+)\]/g;
 const entryPattern =
   /^(.*?)(?:(?::\s*(?:lines?\s*)?(\d+)(?:\s*-\s*(\d+))?)|(?:#L(\d+)(?:\s*-\s*L(\d+))?))$/i;
+const multiRangePattern =
+  /^([^,]+?):\s*(\d+(?:\s*-\s*\d+)?(?:\s*,\s*\d+(?:\s*-\s*\d+)?)+)$/;
 
 function alias(value: string): string {
   return value
@@ -50,7 +52,9 @@ function resolveSource(
 }
 
 function splitEntries(inner: string): string[] {
-  return inner.split(/,(?!\s*\d+\s*(?:,|$))/).map((entry) => entry.trim());
+  return inner
+    .split(/,\s*(?=[^,\]]+?\.md(?:\s*[:#]|\s*(?:,|$)))/i)
+    .map((entry) => entry.trim());
 }
 
 function markerLine(text: string, offset: number): number {
@@ -67,12 +71,50 @@ export function repairCitationText(
   markerPattern.lastIndex = 0;
   const transformed = text.replace(markerPattern, (before, inner: string, offset: number) => {
     const line = markerLine(text, offset);
-    const entries = splitEntries(inner);
+    const normalizedInner = inner.replace(/[–—]/g, "-");
+    const entries = multiRangePattern.test(normalizedInner)
+      ? [inner.trim()]
+      : splitEntries(inner);
     const rewritten: string[] = [];
     let markerReason: CitationRepair["reason"] | undefined;
     let unresolvedMarker = false;
     for (const originalEntry of entries) {
       const normalizedDashes = originalEntry.replace(/[–—]/g, "-");
+      const multiRange = multiRangePattern.exec(normalizedDashes);
+      if (multiRange) {
+        const source = resolveSource(multiRange[1]!.trim(), sources);
+        if (!source) {
+          rewritten.push(originalEntry);
+          unresolvedMarker = true;
+          continue;
+        }
+        const ranges = multiRange[2]!.split(/\s*,\s*/).map((range) => {
+          const [startToken, endToken = startToken] = range.split(/\s*-\s*/);
+          return { start: Number(startToken), end: Number(endToken) };
+        });
+        if (
+          ranges.some(
+            ({ start, end }) =>
+              start < 1 || end < start || end > source.lines,
+          )
+        ) {
+          rewritten.push(source.filename);
+          markerReason = "removed-invalid-range";
+          continue;
+        }
+        rewritten.push(
+          ...ranges.map(
+            ({ start, end }) => `${source.filename}:${start}-${end}`,
+          ),
+        );
+        if (!markerReason) {
+          markerReason =
+            source.filename.toLowerCase() === multiRange[1]!.trim().toLowerCase()
+              ? "normalized-syntax"
+              : "unique-filename-alias";
+        }
+        continue;
+      }
       const match = entryPattern.exec(normalizedDashes);
       const fileToken = (match?.[1] ?? normalizedDashes).trim();
       const source = resolveSource(fileToken, sources);
@@ -168,4 +210,3 @@ export async function repairWorkspaceCitations(
   }
   return { repairs, unresolved };
 }
-
