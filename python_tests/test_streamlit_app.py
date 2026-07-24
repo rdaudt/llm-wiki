@@ -1,5 +1,6 @@
 import os
 import subprocess
+import tempfile
 import time
 import urllib.request
 from pathlib import Path
@@ -12,27 +13,29 @@ from streamlit.testing.v1 import AppTest
 def adapter() -> None:
     environment = os.environ.copy()
     environment.pop("OPENAI_API_KEY", None)
-    process = subprocess.Popen(  # noqa: S603
-        ["node", "--import", "tsx", "src/server.ts"],  # noqa: S607
-        cwd=Path(__file__).parents[1],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        creationflags=subprocess.CREATE_NO_WINDOW,
-        env=environment,
-    )
-    deadline = time.monotonic() + 20
-    while time.monotonic() < deadline:
-        try:
-            with urllib.request.urlopen("http://127.0.0.1:4310/health", timeout=1):  # noqa: S310
-                break
-        except OSError:
-            time.sleep(0.2)
-    else:
+    with tempfile.TemporaryDirectory(prefix="llm-wiki-streamlit-test-") as runtime:
+        environment["WIKI_VAR_ROOT"] = runtime
+        process = subprocess.Popen(  # noqa: S603
+            ["node", "--import", "tsx", "src/server.ts"],  # noqa: S607
+            cwd=Path(__file__).parents[1],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+            env=environment,
+        )
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
+            try:
+                with urllib.request.urlopen("http://127.0.0.1:4310/health", timeout=1):  # noqa: S310
+                    break
+            except OSError:
+                time.sleep(0.2)
+        else:
+            process.terminate()
+            pytest.fail("adapter did not become healthy")
+        yield
         process.terminate()
-        pytest.fail("adapter did not become healthy")
-    yield
-    process.terminate()
-    process.wait(timeout=10)
+        process.wait(timeout=10)
 
 
 def test_empty_state_offers_staged_controls_and_native_viewer(adapter: None) -> None:

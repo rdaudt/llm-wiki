@@ -50,6 +50,15 @@ export async function ensureWorkspace(projectRoot: string): Promise<string> {
   if (relative(resolvedProject, workspace) !== expected) {
     throw new Error("refusing to initialize an unexpected runtime workspace path");
   }
+  return ensureWorkspaceAt(resolvedProject, workspace);
+}
+
+export async function ensureWorkspaceAt(
+  projectRoot: string,
+  workspaceRoot: string,
+): Promise<string> {
+  const resolvedProject = resolve(projectRoot);
+  const workspace = resolve(workspaceRoot);
   const schemaDirectory = join(workspace, ".llmwiki");
   const schemaPath = join(schemaDirectory, "schema.yaml");
   await mkdir(schemaDirectory, { recursive: true });

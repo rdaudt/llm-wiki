@@ -2,6 +2,7 @@ from app.viewmodel import (
     build_delta_view,
     curated_questions,
     format_deadline,
+    group_citations,
     phase_controls,
     sanitize_generated_markdown,
 )
@@ -80,3 +81,33 @@ def test_phase_controls_follow_server_available_actions() -> None:
         "quality",
         "repair_citations",
     }
+
+
+def test_citations_are_grouped_by_page_and_source_with_unique_ranges() -> None:
+    groups = group_citations(
+        [
+            {
+                "pageId": "concepts/client-computing",
+                "pageTitle": "Client Computing Group",
+                "file": "intel-2026-10k.md",
+                "lines": {"start": 30, "end": 35},
+            },
+            {
+                "pageId": "concepts/client-computing",
+                "pageTitle": "Client Computing Group",
+                "file": "intel-2026-10k.md",
+                "lines": {"start": 30, "end": 35},
+            },
+            {
+                "pageId": "concepts/client-computing",
+                "pageTitle": "Client Computing Group",
+                "source": "intel-2026-10k.md",
+                "startLine": 72,
+                "endLine": 75,
+            },
+        ]
+    )
+    assert len(groups) == 1
+    assert groups[0].page_title == "Client Computing Group"
+    assert groups[0].source == "intel-2026-10k.md"
+    assert groups[0].ranges == ("30–35", "72–75")

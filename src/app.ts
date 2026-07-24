@@ -68,6 +68,7 @@ interface OperationRecord {
 
 export interface AppOptions {
   root: string;
+  workspaceRoot?: string;
   apiKey?: string;
   secUserAgent?: string;
   wiki?: LiveWiki;
@@ -112,7 +113,9 @@ function pageId(page: any): string {
 
 export function createApp(options: AppOptions) {
   const app = express();
-  const workspaceRoot = resolve(options.root, "var", "wiki");
+  const workspaceRoot = resolve(
+    options.workspaceRoot ?? resolve(options.root, "var", "wiki"),
+  );
   const wiki = options.wiki ?? new CompilerClient(workspaceRoot);
   const stagedBaselineExecutor: OperationExecutor = async (_type, report, signal) => {
     const build = await options.buildService!.getOrCreateBaseline();

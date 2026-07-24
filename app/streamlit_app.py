@@ -17,6 +17,7 @@ from app.viewmodel import (  # noqa: E402
     build_delta_view,
     curated_questions,
     format_deadline,
+    group_citations,
     phase_controls,
     sanitize_generated_markdown,
 )
@@ -267,10 +268,15 @@ if st.button("Ask", disabled=not live_enabled or not question or stage == "empty
         ).raise_for_status().json()
         st.caption("AI-generated answer — verify against citations")
         st.markdown(sanitize_generated_markdown(answer["answer"]))
-        for citation in answer.get("citations", []):
-            st.caption(
-                f"{citation.get('pageTitle', citation.get('pageId'))} · "
-                f"{citation.get('source', 'source')}"
+        citation_groups = group_citations(answer.get("citations", []))
+        if citation_groups:
+            st.markdown("**Sources**")
+        for citation in citation_groups:
+            ranges = (
+                f" · lines {', '.join(citation.ranges)}"
+                if citation.ranges
+                else ""
             )
+            st.caption(f"{citation.page_title} · {citation.source}{ranges}")
     except httpx.HTTPError as error:
         st.error(str(error))

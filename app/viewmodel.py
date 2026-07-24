@@ -30,6 +30,65 @@ class PhaseControl:
     enabled: bool
 
 
+@dataclass(frozen=True)
+class CitationGroup:
+    page_id: str
+    page_title: str
+    source: str
+    ranges: tuple[str, ...]
+
+
+def _citation_source(citation: dict[str, Any]) -> str:
+    for field in ("source", "file", "filename"):
+        value = citation.get(field)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    raw = citation.get("raw")
+    if isinstance(raw, str):
+        match = re.match(r"\s*([^:#,\]]+\.md)", raw)
+        if match:
+            return match.group(1)
+    return "Unknown source"
+
+
+def _citation_range(citation: dict[str, Any]) -> str | None:
+    lines = citation.get("lines")
+    start = citation.get("startLine")
+    end = citation.get("endLine")
+    if isinstance(lines, dict):
+        start = lines.get("start", start)
+        end = lines.get("end", end)
+    start = citation.get("start", start)
+    end = citation.get("end", end)
+    if not isinstance(start, int):
+        return None
+    if not isinstance(end, int):
+        end = start
+    return str(start) if start == end else f"{start}–{end}"
+
+
+def group_citations(citations: list[dict[str, Any]]) -> list[CitationGroup]:
+    grouped: dict[tuple[str, str, str], list[str]] = {}
+    for citation in citations:
+        page_id = str(citation.get("pageId", ""))
+        page_title = str(citation.get("pageTitle") or page_id or "Wiki page")
+        source = _citation_source(citation)
+        key = (page_id, page_title, source)
+        ranges = grouped.setdefault(key, [])
+        line_range = _citation_range(citation)
+        if line_range and line_range not in ranges:
+            ranges.append(line_range)
+    return [
+        CitationGroup(
+            page_id=page_id,
+            page_title=page_title,
+            source=source,
+            ranges=tuple(ranges),
+        )
+        for (page_id, page_title, source), ranges in grouped.items()
+    ]
+
+
 def phase_controls(build: dict[str, Any]) -> list[PhaseControl]:
     available = set(build.get("availableActions", []))
     actions = [
