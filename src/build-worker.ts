@@ -8,6 +8,7 @@ import type {
 } from "./build-types.js";
 import type { ManifestFiling } from "./pipeline.js";
 import { fetchAndNormalizeSecFiling } from "./sec.js";
+import { repairWorkspaceCitations } from "./citation-repair.js";
 
 const REQUIRED_PAGES = [
   "ai-semiconductor-landscape",
@@ -117,7 +118,11 @@ export async function runBuildWorkerRequest(
   if (request.action === "fetch") return fetchPhase(request, report);
   if (request.action === "ingest") return ingestPhase(request, report);
   if (request.action === "compile") return compilePhase(request, report);
-  throw new Error("Citation repair worker is not installed");
+  report("repair_citations");
+  const repaired = await repairWorkspaceCitations(
+    path.join(request.targetRoot, "workspace"),
+  );
+  return { action: "repair_citations", ...repaired };
 }
 
 const serialized = process.env.BUILD_WORKER_REQUEST;
@@ -134,4 +139,3 @@ if (serialized) {
     process.exitCode = 1;
   }
 }
-

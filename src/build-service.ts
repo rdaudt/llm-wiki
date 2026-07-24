@@ -60,7 +60,19 @@ export class BuildService {
         targetRoot: transaction.temporaryRoot,
       });
       const next = this.nextState(current, result);
-      return await this.store.commitPhase(transaction, next);
+      const committed = await this.store.commitPhase(transaction, next);
+      if (result.action !== "repair_citations") return committed;
+      const latestRepairArtifact = await this.store.writeArtifact(
+        buildId,
+        "repairs",
+        operationId,
+        {
+          createdAt: new Date().toISOString(),
+          repairs: result.repairs,
+          unresolved: result.unresolved,
+        },
+      );
+      return this.store.updateState({ ...committed, latestRepairArtifact });
     } catch (error) {
       await this.store.failPhase(transaction, {
         operationId,

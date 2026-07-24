@@ -25,6 +25,7 @@ export interface BuildState {
   publishedAt?: string;
   sourceFiles: BuildSourceFile[];
   latestQualityArtifact?: string;
+  latestRepairArtifact?: string;
 }
 
 export interface PhaseTransaction {
@@ -53,7 +54,11 @@ export type BuildWorkerResult =
   | { action: "fetch"; filings: number }
   | { action: "ingest"; sourceFiles: BuildSourceFile[] }
   | { action: "compile"; pages: string[] }
-  | { action: "repair_citations"; repairs: unknown[]; unresolved: unknown[] };
+  | {
+      action: "repair_citations";
+      repairs: import("./citation-repair.js").CitationRepair[];
+      unresolved: QualityFinding[];
+    };
 
 export interface QualityFinding {
   rule: string;

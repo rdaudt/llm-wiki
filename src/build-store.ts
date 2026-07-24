@@ -36,6 +36,7 @@ const stateSchema = z.object({
     }),
   ),
   latestQualityArtifact: z.string().optional(),
+  latestRepairArtifact: z.string().optional(),
 });
 
 function checkedIdentifier(value: string, label: string): string {
