@@ -12,6 +12,7 @@ import { redactSecrets } from "./domain.js";
 
 export type BuildPhaseExecutor = (
   request: BuildWorkerRequest,
+  signal?: AbortSignal,
 ) => Promise<BuildWorkerResult>;
 
 export type QualityRunner = (workspaceRoot: string) => Promise<{
@@ -43,6 +44,7 @@ export class BuildService {
     buildId: string,
     action: BuildAction,
     operationId: string = randomUUID(),
+    signal?: AbortSignal,
   ): Promise<BuildState> {
     const current = await this.store.load(buildId);
     if (!this.store.availableActions(current).includes(action)) {
@@ -58,7 +60,7 @@ export class BuildService {
         action,
         buildId,
         targetRoot: transaction.temporaryRoot,
-      });
+      }, signal);
       const next = this.nextState(current, result);
       const committed = await this.store.commitPhase(transaction, next);
       if (result.action !== "repair_citations") return committed;
@@ -133,6 +135,10 @@ export class BuildService {
       buildId,
       state.latestQualityArtifact,
     )) as QualityArtifact;
+  }
+
+  async getArtifact(buildId: string, artifactPath: string): Promise<unknown> {
+    return this.store.readArtifact(buildId, artifactPath);
   }
 
   private nextState(current: BuildState, result: BuildWorkerResult): BuildState {
