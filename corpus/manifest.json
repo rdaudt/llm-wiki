@@ -8,12 +8,10 @@
     "filedOn": "2026-02-25",
     "periodEnd": "2026-01-25",
     "role": "baseline",
-    "secIndexUrl": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/0001045810-26-000021-index.html",
+    "secIndexUrl": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/0001045810-26-000021-index.htm",
     "primaryDocumentUrl": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-20260125.htm",
     "includedSections": ["Item 1", "Item 1A", "Item 7"],
-    "outputFile": "nvidia-2026-10k.md",
-    "normalizedChars": 705,
-    "sha256": "4bee526ef64de3c05a926690914ca42d076f298403bc54754d57df4581c2643b"
+    "outputFile": "nvidia-2026-10k.md"
   },
   {
     "id": "amd-2026-10k",
@@ -24,12 +22,10 @@
     "filedOn": "2026-02-04",
     "periodEnd": "2025-12-27",
     "role": "baseline",
-    "secIndexUrl": "https://www.sec.gov/Archives/edgar/data/2488/000000248826000018/0000002488-26-000018-index.html",
+    "secIndexUrl": "https://www.sec.gov/Archives/edgar/data/2488/000000248826000018/0000002488-26-000018-index.htm",
     "primaryDocumentUrl": "https://www.sec.gov/Archives/edgar/data/2488/000000248826000018/amd-20251227.htm",
     "includedSections": ["Item 1", "Item 1A", "Item 7"],
-    "outputFile": "amd-2026-10k.md",
-    "normalizedChars": 695,
-    "sha256": "73414b5d850dcfa835eb08c43bed07b357102959a96fba570865d6f467d7078e"
+    "outputFile": "amd-2026-10k.md"
   },
   {
     "id": "intel-2026-10k",
@@ -40,12 +36,10 @@
     "filedOn": "2026-01-23",
     "periodEnd": "2025-12-27",
     "role": "baseline",
-    "secIndexUrl": "https://www.sec.gov/Archives/edgar/data/50863/000005086326000011/0000050863-26-000011-index.html",
+    "secIndexUrl": "https://www.sec.gov/Archives/edgar/data/50863/000005086326000011/0000050863-26-000011-index.htm",
     "primaryDocumentUrl": "https://www.sec.gov/Archives/edgar/data/50863/000005086326000011/intc-20251227.htm",
     "includedSections": ["Item 1", "Item 1A", "Item 7"],
-    "outputFile": "intel-2026-10k.md",
-    "normalizedChars": 701,
-    "sha256": "3606d6f9aab31f2036b100178c0637bc758d43fd024d580e0df31e89aab08e0f"
+    "outputFile": "intel-2026-10k.md"
   },
   {
     "id": "nvidia-q1-fy2027-10q",
@@ -56,11 +50,9 @@
     "filedOn": "2026-05-20",
     "periodEnd": "2026-04-26",
     "role": "delta",
-    "secIndexUrl": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000052/0001045810-26-000052-index.html",
+    "secIndexUrl": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000052/0001045810-26-000052-index.htm",
     "primaryDocumentUrl": "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000052/nvda-20260426.htm",
     "includedSections": ["Part I Item 2", "Part II Item 1A"],
-    "outputFile": "nvidia-q1-fy2027-10q.md",
-    "normalizedChars": 597,
-    "sha256": "4739dc274edc62e8809ba10b5d907ecf0b0fa145ae865acba4c6763f7a473298"
+    "outputFile": "nvidia-q1-fy2027-10q.md"
   }
 ]

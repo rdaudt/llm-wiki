@@ -1,38 +1,62 @@
-# AI Industry Intelligence Wiki
+# Live LLM-Wiki SEC demo
 
-A local, offline-first leadership showcase of durable, interconnected knowledge compiled from public semiconductor-company SEC filings. The browser talks only to Streamlit; Streamlit calls an Express adapter bound to `127.0.0.1:4310`.
+This loopback-only demo builds an LLM-Wiki from pinned public SEC filings. It
+contains no packaged wiki pages, prepared answers, replay snapshots, or
+synthetic success metrics. All knowledge comes from live SEC and OpenAI work.
 
-## Quick start
+## Requirements
 
-Requirements: Windows, Node 24.x, Python 3.12.x. Copy `.env.example` to `.env`; add credentials only to `.env` or the process environment.
+- Windows with Node 24.x and Python 3.12.x
+- `OPENAI_API_KEY`
+- `SEC_USER_AGENT` containing an application name and monitored contact address
+- Access to the filing URLs pinned in `corpus/manifest.json`
+
+Compilation, embeddings, and Q&A consume paid OpenAI capacity. SEC requests
+must comply with SEC access policies.
+
+## Setup and start
 
 ```powershell
+Copy-Item .env.example .env
+# Edit .env and provide OPENAI_API_KEY and SEC_USER_AGENT.
 .\scripts\bootstrap.ps1
+.\scripts\verify-demo.ps1
 .\scripts\start.ps1
 ```
 
-Without `OPENAI_API_KEY`, read-only pages and the checksum-oriented replay boundary remain available; live query and compilation are disabled.
+Normal startup preserves successful checkpoints and published knowledge:
 
-## Five-minute runbook
+- adapter: <http://127.0.0.1:4310>
+- published LLM-Wiki viewer: <http://127.0.0.1:4320>
+- staging LLM-Wiki viewer: <http://127.0.0.1:4321>
+- Streamlit: <http://127.0.0.1:8501>
 
-- **0:00–0:45:** Introduce compiled knowledge, the three baseline filings, and baseline metrics.
-- **0:45–1:45:** Trace the knowledge graph, comparison page, and company-level SEC citations.
-- **1:45–3:15:** Select **Add NVIDIA quarterly evidence**. Call out the 60-second deadline and mode badge.
-- **3:15–4:15:** Review created/updated/unchanged counts and both evidence-backed claim changes.
-- **4:15–5:00:** Show quality gates and explain that saved synthesis becomes future retrieval context.
+Only Streamlit opens automatically.
 
-## Pre-demo checklist
+## Stabilization workflow
 
-- Confirm OpenAI balance and `OPENAI_API_KEY` only if using live mode.
-- Confirm `SEC_USER_AGENT` contains an application name and monitored contact.
-- Run `scripts/verify-demo.ps1`; confirm ports 4310 and 8501 are available.
-- Run `scripts/reset-demo.ps1` after the services start.
-- Exercise the replay once and confirm its timestamp and reason are visible.
-- Set browser zoom and presentation resolution before the audience arrives.
+1. **Fetch and normalize filings** checkpoints normalized SEC Markdown and receipts.
+2. **Ingest sources** records the exact filenames returned by LLM-Wiki.
+3. **Compile wiki** checkpoints generated pages without running citation lint.
+4. **Run quality checks** retains exact page, line, marker, rule, and message data.
+5. Use **Repair quality issues** for conservative deterministic fixes, or recompile.
+6. Run quality again, then **Publish baseline wiki** when it passes.
+7. Browse published pages and ask the two baseline questions.
+8. Compile the NVIDIA quarterly delta and ask the third question.
 
-## Recovery
+Each successful phase is restart-safe. A failed phase restores only its
+starting checkpoint and retains bounded, secret-redacted diagnostics. Quality
+is read-only and never deletes generated pages. There is no fixture fallback.
 
-If a provider call fails or crosses the 60-second deadline, the adapter returns the verified replay contract and labels the reason. Reset with `scripts/reset-demo.ps1`. Stop only POC-owned processes with `scripts/stop.ps1`; it uses recorded process IDs and does not kill unrelated Node or Python processes.
+See [the operator runbook](docs/runbook.md) for recovery and artifact details.
+
+## Reset and stop
+
+```powershell
+.\scripts\stop.ps1
+.\scripts\start.ps1       # preserves checkpoints and published knowledge
+.\scripts\reset-demo.ps1  # explicitly clears builds and both workspaces
+```
 
 ## Verification
 
@@ -40,5 +64,7 @@ If a provider call fails or crosses the 60-second deadline, the adapter returns 
 .\scripts\verify-demo.ps1
 ```
 
-Offline CI runs TypeScript build/tests and Python tests/lint on Windows with Node 24 and Python 3.12. SEC-network and OpenAI runs are explicit manual release checks.
-
+Verification checks credentials, SEC contact, runtime versions, dependencies,
+loopback ports, TypeScript build/tests, and Python tests/lint. It performs no
+SEC request and no paid model call. The full live workflow remains a manual,
+networked, cost-bearing release test.
