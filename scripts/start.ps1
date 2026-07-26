@@ -27,16 +27,9 @@ if (-not $adapterReady) {
     throw "Adapter did not become healthy within 30 seconds."
 }
 
-$stagingRoot = Join-Path $root "var\staging-wiki"
-New-Item -ItemType Directory -Force -Path (Join-Path $stagingRoot ".llmwiki") | Out-Null
-if (-not (Test-Path -LiteralPath (Join-Path $stagingRoot ".llmwiki\schema.yaml"))) {
-    Copy-Item -LiteralPath (Join-Path $root "wiki\schema.yaml") -Destination (Join-Path $stagingRoot ".llmwiki\schema.yaml")
-}
-$viewer = Start-Process -FilePath (Join-Path $root "node_modules\.bin\llmwiki.cmd") -ArgumentList "view", "--port", "4320" -WorkingDirectory (Join-Path $root "var\wiki") -WindowStyle Hidden -PassThru
-$stagingViewer = Start-Process -FilePath (Join-Path $root "node_modules\.bin\llmwiki.cmd") -ArgumentList "view", "--port", "4321" -WorkingDirectory $stagingRoot -WindowStyle Hidden -PassThru
+& (Join-Path $PSScriptRoot "viewer.ps1") -Action Start -Target Published
+& (Join-Path $PSScriptRoot "viewer.ps1") -Action Start -Target Staging
 $ui = Start-Process -FilePath (Join-Path $root ".venv\Scripts\python.exe") -ArgumentList "-m", "streamlit", "run", "app\streamlit_app.py", "--server.address", "127.0.0.1", "--server.port", "8501", "--server.headless", "true" -WorkingDirectory $root -WindowStyle Hidden -PassThru
-Set-Content -LiteralPath (Join-Path $pidDir "viewer-launcher.pid") -Value $viewer.Id
-Set-Content -LiteralPath (Join-Path $pidDir "staging-viewer-launcher.pid") -Value $stagingViewer.Id
 Set-Content -LiteralPath (Join-Path $pidDir "streamlit-launcher.pid") -Value $ui.Id
 
 $serviceDeadline = (Get-Date).AddSeconds(30)
@@ -64,7 +57,7 @@ if (-not $viewerReady -or -not $stagingViewerReady -or -not $uiReady) {
     throw "Published viewer, staging viewer, and Streamlit did not become healthy within 30 seconds."
 }
 
-foreach ($service in @(@{ Port = 4320; Name = "viewer.pid" }, @{ Port = 4321; Name = "staging-viewer.pid" }, @{ Port = 8501; Name = "streamlit.pid" })) {
+foreach ($service in @(@{ Port = 8501; Name = "streamlit.pid" })) {
     $owner = Get-NetTCPConnection -LocalPort $service.Port -State Listen |
         Where-Object { $_.LocalAddress -in @("127.0.0.1", "::1") } |
         Select-Object -First 1 -ExpandProperty OwningProcess

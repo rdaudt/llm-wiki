@@ -1,5 +1,6 @@
 export type BuildStage = "empty" | "fetched" | "ingested" | "compiled" | "published";
 export type QualityStatus = "not_run" | "failed" | "passed";
+export type KnowledgeStage = "empty" | "baseline" | "post_delta";
 export type BuildAction =
   | "fetch"
   | "ingest"
@@ -18,6 +19,7 @@ export interface BuildState {
   buildId: string;
   kind: "baseline";
   stage: BuildStage;
+  knowledgeStage: KnowledgeStage;
   qualityStatus: QualityStatus;
   checkpointId?: string;
   createdAt: string;

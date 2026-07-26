@@ -156,6 +156,32 @@ describe("live-only adapter", () => {
     );
   });
 
+  it("persists post_delta after a successful delta operation", async () => {
+    const setKnowledgeStage = vi.fn(async () => undefined);
+    const app = createApp({
+      root: "unused",
+      apiKey: "configured",
+      secUserAgent: "demo contact@example.com",
+      wiki: fakeWiki(),
+      initialStage: "baseline",
+      operationExecutor: vi.fn(async () => ({})),
+      buildService: {
+        getOrCreateBaseline: vi.fn(async () => ({ buildId: "baseline-test" })),
+        setKnowledgeStage,
+      } as any,
+    });
+
+    const delta = await request(app)
+      .post("/v1/demo/delta")
+      .set("Idempotency-Key", "persisted-delta");
+    await eventually(app, delta.body.operationId, "completed");
+
+    expect(setKnowledgeStage).toHaveBeenCalledWith(
+      "baseline-test",
+      "post_delta",
+    );
+  });
+
   it("passes distinct questions and save flags unchanged to the compiler", async () => {
     const query = vi.fn(async (question: string, save: boolean) => ({
       answer: `answer:${question}`,
@@ -275,6 +301,7 @@ describe("live-only adapter", () => {
       buildId: "baseline-test",
       kind: "baseline" as const,
       stage: "empty" as const,
+      knowledgeStage: "empty" as const,
       qualityStatus: "not_run" as const,
       createdAt: "2026-07-24T08:00:00.000Z",
       updatedAt: "2026-07-24T08:00:00.000Z",
@@ -289,6 +316,7 @@ describe("live-only adapter", () => {
       })),
       runPhase,
       runQuality: vi.fn(),
+      setKnowledgeStage: vi.fn(),
       getLatestQuality: vi.fn(),
       getArtifact: vi.fn(),
       runPublish: vi.fn(),

@@ -87,6 +87,35 @@ describe("BuildService phase boundaries", () => {
     expect(failures[0]?.diagnostics).toEqual([]);
   });
 
+  it("leaves checkpoint and state unchanged when staging publication fails", async () => {
+    const execute = async (request: BuildWorkerRequest): Promise<BuildWorkerResult> => {
+      if (request.action === "fetch") return { action: "fetch", filings: 3 };
+      if (request.action === "ingest") return { action: "ingest", sourceFiles: [] };
+      return { action: "compile", pages: [] };
+    };
+    const root = await mkdtemp(path.join(tmpdir(), "llm-wiki-stage-failure-"));
+    const store = new BuildStore(root);
+    const publisher = vi.fn(async (
+      _source: string,
+      _target: string,
+      _commit: () => Promise<import("../src/build-types.js").BuildState>,
+    ) => {
+      throw new Error("staging viewer failed");
+    });
+    const builds = new BuildService(store, execute, undefined, publisher);
+    const build = await builds.getOrCreateBaseline();
+    await builds.runPhase(build.buildId, "fetch", "stage-fetch");
+    await builds.runPhase(build.buildId, "ingest", "stage-ingest");
+    const before = await store.load(build.buildId);
+
+    await expect(
+      builds.runPhase(build.buildId, "compile", "stage-compile"),
+    ).rejects.toThrow(/staging viewer failed/);
+
+    expect(await store.load(build.buildId)).toEqual(before);
+    expect(await store.listFailures(build.buildId, "compile")).toHaveLength(1);
+  });
+
   it("retains exact citation findings without rolling back compiled pages", async () => {
     const execute = async (request: BuildWorkerRequest): Promise<BuildWorkerResult> => {
       if (request.action === "fetch") return { action: "fetch", filings: 3 };
@@ -152,6 +181,55 @@ describe("BuildService phase boundaries", () => {
     ]);
   });
 
+  it("gates quality on citation errors beyond the retained artifact limit", async () => {
+    const execute = async (request: BuildWorkerRequest): Promise<BuildWorkerResult> => {
+      if (request.action === "fetch") return { action: "fetch", filings: 3 };
+      if (request.action === "ingest") return { action: "ingest", sourceFiles: [] };
+      return {
+        action: "compile",
+        pages: [
+          "ai-semiconductor-landscape",
+          "company-strategy-comparison",
+          "supply-chain-and-geopolitical-risk",
+        ],
+      };
+    };
+    const root = await mkdtemp(path.join(tmpdir(), "llm-wiki-quality-limit-"));
+    const store = new BuildStore(root);
+    const nonBlocking = Array.from({ length: 2_000 }, (_, index) => ({
+      rule: "schema-cross-link-minimum",
+      severity: "warning",
+      file: `wiki/concepts/page-${index}.md`,
+      message: "Needs another link",
+    }));
+    const quality = vi.fn(async () => ({
+      lint: {
+        results: [
+          ...nonBlocking,
+          {
+            rule: "broken-citation",
+            severity: "error",
+            file: "wiki/concepts/late-error.md",
+            message: "Broken citation ^[nvidia-2026-10k.md:1-2]",
+          },
+        ],
+      },
+      evaluation: {},
+    }));
+    const builds = new BuildService(store, execute, quality);
+    const build = await builds.getOrCreateBaseline();
+    await builds.runPhase(build.buildId, "fetch", "limit-fetch");
+    await builds.runPhase(build.buildId, "ingest", "limit-ingest");
+    await builds.runPhase(build.buildId, "compile", "limit-compile");
+
+    const checked = await builds.runQuality(build.buildId, "limit-quality");
+
+    expect(checked.qualityStatus).toBe("failed");
+    const artifact = await builds.getLatestQuality(build.buildId);
+    expect(artifact.truncated).toBe(true);
+    expect(artifact.findings).toHaveLength(2_000);
+  });
+
   it("publishes only a quality-passed checkpoint", async () => {
     const execute = async (request: BuildWorkerRequest): Promise<BuildWorkerResult> => {
       if (request.action === "fetch") return { action: "fetch", filings: 3 };
@@ -167,7 +245,11 @@ describe("BuildService phase boundaries", () => {
     };
     const root = await mkdtemp(path.join(tmpdir(), "llm-wiki-publish-service-"));
     const store = new BuildStore(root);
-    const publisher = vi.fn(async () => undefined);
+    const publisher = vi.fn(async (
+      _source: string,
+      _target: string,
+      commit: () => Promise<import("../src/build-types.js").BuildState>,
+    ) => commit());
     const builds = new BuildService(
       store,
       execute,
@@ -183,10 +265,19 @@ describe("BuildService phase boundaries", () => {
     await builds.runQuality(build.buildId, "publish-quality");
     const published = await builds.runPublish(build.buildId);
     expect(published.stage).toBe("published");
+    expect(published.knowledgeStage).toBe("baseline");
     expect(published.publishedAt).toBeTruthy();
     expect(publisher).toHaveBeenLastCalledWith(
       expect.stringContaining("workspace"),
       path.join(root, "wiki"),
+      expect.any(Function),
     );
+
+    const postDelta = await (builds as any).setKnowledgeStage(
+      build.buildId,
+      "post_delta",
+    );
+    expect(postDelta.knowledgeStage).toBe("post_delta");
+    expect((await store.load(build.buildId)).knowledgeStage).toBe("post_delta");
   });
 });

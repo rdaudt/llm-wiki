@@ -4,6 +4,7 @@ from app.viewmodel import (
     format_deadline,
     group_citations,
     phase_controls,
+    resolve_knowledge_stage,
     sanitize_generated_markdown,
 )
 
@@ -21,6 +22,13 @@ def test_questions_are_unlocked_by_live_knowledge_stage() -> None:
     assert curated_questions("empty") == []
     assert len(curated_questions("baseline")) == 2
     assert len(curated_questions("post_delta")) == 3
+
+
+def test_post_delta_state_is_not_overridden_by_published_build_stage() -> None:
+    assert resolve_knowledge_stage(
+        {"stage": "published"},
+        {"knowledgeStage": "post_delta"},
+    ) == "post_delta"
 
 
 def test_delta_view_only_keeps_changes_citing_the_quarter() -> None:

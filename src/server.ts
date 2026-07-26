@@ -6,6 +6,10 @@ import { executeBuildWorker } from "./operations.js";
 import { ensureWorkspaceAt } from "./runtime.js";
 import { resolve } from "node:path";
 import { publishWorkspaceContents } from "./workspace-publisher.js";
+import {
+  createPowerShellViewerLifecycle,
+  createViewerAwarePublisher,
+} from "./viewer-publisher.js";
 
 const port = Number(process.env.ADAPTER_PORT ?? "4310");
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -17,6 +21,10 @@ const publishedWorkspace = resolve(runtimeVarRoot, "wiki");
 await ensureWorkspaceAt(process.cwd(), publishedWorkspace);
 const buildStore = new BuildStore(runtimeVarRoot);
 const existingBaseline = await buildStore.currentBaseline();
+const workspacePublisher = createViewerAwarePublisher(
+  publishWorkspaceContents,
+  createPowerShellViewerLifecycle(process.cwd(), runtimeVarRoot),
+);
 const buildService = new BuildService(
   buildStore,
   (request, signal) =>
@@ -33,7 +41,7 @@ const buildService = new BuildService(
     ]);
     return { lint, evaluation };
   },
-  publishWorkspaceContents,
+  workspacePublisher,
 );
 createApp({
   root: process.cwd(),
@@ -41,7 +49,7 @@ createApp({
   apiKey: process.env.OPENAI_API_KEY,
   secUserAgent: process.env.SEC_USER_AGENT,
   buildService,
-  initialStage: existingBaseline?.stage === "published" ? "baseline" : "empty",
+  initialStage: existingBaseline?.knowledgeStage ?? "empty",
 }).listen(
   port,
   "127.0.0.1",

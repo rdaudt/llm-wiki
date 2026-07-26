@@ -23,6 +23,7 @@ const stateSchema = z.object({
   buildId: z.string().regex(identifierPattern),
   kind: z.literal("baseline"),
   stage: z.enum(["empty", "fetched", "ingested", "compiled", "published"]),
+  knowledgeStage: z.enum(["empty", "baseline", "post_delta"]).optional(),
   qualityStatus: z.enum(["not_run", "failed", "passed"]),
   checkpointId: z.string().regex(identifierPattern).optional(),
   createdAt: z.string(),
@@ -37,7 +38,11 @@ const stateSchema = z.object({
   ),
   latestQualityArtifact: z.string().optional(),
   latestRepairArtifact: z.string().optional(),
-});
+}).transform((state) => ({
+  ...state,
+  knowledgeStage:
+    state.knowledgeStage ?? (state.stage === "published" ? "baseline" : "empty"),
+}));
 
 function checkedIdentifier(value: string, label: string): string {
   if (!identifierPattern.test(value)) throw new Error(`Invalid ${label}`);
@@ -90,6 +95,7 @@ export class BuildStore {
       buildId: `baseline-${randomUUID()}`,
       kind: "baseline",
       stage: "empty",
+      knowledgeStage: "empty",
       qualityStatus: "not_run",
       createdAt: now,
       updatedAt: now,

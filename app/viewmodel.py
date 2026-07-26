@@ -119,6 +119,16 @@ def curated_questions(stage: str) -> list[str]:
     return []
 
 
+def resolve_knowledge_stage(
+    build: dict[str, Any],
+    state: dict[str, Any],
+) -> str:
+    stage = str(state.get("knowledgeStage", "empty"))
+    if stage in {"empty", "baseline", "post_delta"}:
+        return stage
+    return "baseline" if build.get("stage") == "published" else "empty"
+
+
 def format_deadline(value: str, *, now_iso: str | None = None) -> str:
     deadline = datetime.fromisoformat(value.replace("Z", "+00:00"))
     now = (

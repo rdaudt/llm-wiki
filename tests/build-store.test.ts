@@ -14,10 +14,23 @@ describe("BuildStore", () => {
     const created = await store.createBaseline();
 
     expect(created.stage).toBe("empty");
+    expect((created as any).knowledgeStage).toBe("empty");
     expect(created.qualityStatus).toBe("not_run");
     expect(store.availableActions(created)).toEqual(["fetch"]);
     expect(await store.currentBaseline()).toEqual(created);
     expect(await store.load(created.buildId)).toEqual(created);
+  });
+
+  it("persists the live knowledge stage with the baseline build", async () => {
+    const store = new BuildStore(await temporaryRoot());
+    const build = await store.createBaseline();
+
+    await store.updateState({
+      ...build,
+      knowledgeStage: "post_delta",
+    } as any);
+
+    expect((await store.load(build.buildId) as any).knowledgeStage).toBe("post_delta");
   });
 
   it("promotes a successful phase without modifying its input checkpoint", async () => {

@@ -18,11 +18,12 @@ async function copyContents(source: string, target: string): Promise<void> {
   }
 }
 
-export async function publishWorkspaceContents(
+export async function publishWorkspaceContents<T = void>(
   sourceRoot: string,
   targetRoot: string,
   verify: () => Promise<void> = async () => undefined,
-): Promise<void> {
+  commit: () => Promise<T> = async () => undefined as T,
+): Promise<T> {
   const source = path.resolve(sourceRoot);
   const target = path.resolve(targetRoot);
   if (source === target) throw new Error("Source and target workspace must differ");
@@ -34,6 +35,7 @@ export async function publishWorkspaceContents(
     await clearContents(target);
     await copyContents(source, target);
     await verify();
+    return await commit();
   } catch (error) {
     await clearContents(target);
     await copyContents(backup, target);
@@ -42,4 +44,3 @@ export async function publishWorkspaceContents(
     await rm(backupContainer, { recursive: true, force: true });
   }
 }
-

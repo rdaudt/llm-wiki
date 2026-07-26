@@ -5,6 +5,7 @@ import type {
   BuildState,
   BuildWorkerRequest,
   BuildWorkerResult,
+  KnowledgeStage,
   QualityArtifact,
   QualityFinding,
 } from "./build-types.js";
@@ -24,7 +25,8 @@ export type QualityRunner = (workspaceRoot: string) => Promise<{
 export type WorkspacePublisher = (
   sourceRoot: string,
   targetRoot: string,
-) => Promise<void>;
+  commit: () => Promise<BuildState>,
+) => Promise<BuildState>;
 
 export interface BuildView extends BuildState {
   availableActions: BuildAction[];
@@ -68,33 +70,31 @@ export class BuildService {
         buildId,
         targetRoot: transaction.temporaryRoot,
       }, signal);
-      const next = this.nextState(current, result);
-      const committed = await this.store.commitPhase(transaction, next);
-      if (result.action === "compile" && this.publisher) {
-        await this.publisher(
-          path.join(this.store.checkpointRoot(buildId, committed.checkpointId!), "workspace"),
+      let next = this.nextState(current, result);
+      if (result.action === "repair_citations") {
+        const latestRepairArtifact = await this.store.writeArtifact(
+          buildId,
+          "repairs",
+          operationId,
+          {
+            createdAt: new Date().toISOString(),
+            repairs: result.repairs,
+            unresolved: result.unresolved,
+          },
+        );
+        next = { ...next, latestRepairArtifact };
+      }
+      if (
+        (result.action === "compile" || result.action === "repair_citations") &&
+        this.publisher
+      ) {
+        return await this.publisher(
+          transaction.temporaryRoot,
           path.join(this.store.varRoot, "staging-wiki"),
+          () => this.store.commitPhase(transaction, next),
         );
       }
-      if (result.action !== "repair_citations") return committed;
-      const latestRepairArtifact = await this.store.writeArtifact(
-        buildId,
-        "repairs",
-        operationId,
-        {
-          createdAt: new Date().toISOString(),
-          repairs: result.repairs,
-          unresolved: result.unresolved,
-        },
-      );
-      const updated = await this.store.updateState({ ...committed, latestRepairArtifact });
-      if (this.publisher) {
-        await this.publisher(
-          path.join(this.store.checkpointRoot(buildId, updated.checkpointId!), "workspace"),
-          path.join(this.store.varRoot, "staging-wiki"),
-        );
-      }
-      return updated;
+      return this.store.commitPhase(transaction, next);
     } catch (error) {
       await this.store.failPhase(transaction, {
         operationId,
@@ -122,11 +122,13 @@ export class BuildService {
     const raw = result.lint.results ?? [];
     const limited = raw.slice(0, 2_000);
     const findings = limited.map((item) => this.qualityFinding(item));
-    const passed = !findings.some(
-      (finding) =>
+    const passed = !raw.some((item) => {
+      const finding = this.qualityFinding(item);
+      return (
         finding.severity.toLowerCase() === "error" &&
-        finding.rule.toLowerCase().includes("citation"),
-    );
+        finding.rule.toLowerCase().includes("citation")
+      );
+    });
     const artifact: QualityArtifact = {
       createdAt: new Date().toISOString(),
       passed,
@@ -168,15 +170,28 @@ export class BuildService {
     }
     if (!current.checkpointId) throw new Error("Compiled checkpoint is missing");
     if (!this.publisher) throw new Error("Workspace publisher is not configured");
-    await this.publisher(
+    return await this.publisher(
       path.join(this.store.checkpointRoot(buildId, current.checkpointId), "workspace"),
       path.join(this.store.varRoot, "wiki"),
+      () =>
+        this.store.updateState({
+          ...current,
+          stage: "published",
+          knowledgeStage: "baseline",
+          publishedAt: new Date().toISOString(),
+        }),
     );
-    return this.store.updateState({
-      ...current,
-      stage: "published",
-      publishedAt: new Date().toISOString(),
-    });
+  }
+
+  async setKnowledgeStage(
+    buildId: string,
+    knowledgeStage: KnowledgeStage,
+  ): Promise<BuildState> {
+    const current = await this.store.load(buildId);
+    if (knowledgeStage !== "empty" && current.stage !== "published") {
+      throw new Error("Live knowledge requires a published baseline");
+    }
+    return this.store.updateState({ ...current, knowledgeStage });
   }
 
   private nextState(current: BuildState, result: BuildWorkerResult): BuildState {

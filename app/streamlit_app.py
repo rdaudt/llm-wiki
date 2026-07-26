@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import time
 import uuid
+import os
 from pathlib import Path
 
 import httpx
@@ -19,10 +20,11 @@ from app.viewmodel import (  # noqa: E402
     format_deadline,
     group_citations,
     phase_controls,
+    resolve_knowledge_stage,
     sanitize_generated_markdown,
 )
 
-BASE_URL = "http://127.0.0.1:4310"
+BASE_URL = os.environ.get("WIKI_ADAPTER_URL", "http://127.0.0.1:4310")
 VIEWER_URL = "http://127.0.0.1:4320"
 STAGING_VIEWER_URL = "http://127.0.0.1:4321"
 
@@ -126,7 +128,7 @@ except httpx.HTTPError:
     st.error("The loopback adapter is unavailable. Run scripts/start.ps1.")
     st.stop()
 
-stage = "baseline" if build["stage"] == "published" else state["knowledgeStage"]
+stage = resolve_knowledge_stage(build, state)
 live_enabled = bool(health["liveEnabled"])
 
 st.header("1. Build durable knowledge")

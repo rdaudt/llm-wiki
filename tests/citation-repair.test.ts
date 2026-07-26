@@ -129,6 +129,23 @@ describe("citation repair", () => {
     expect(result.repairs).toEqual([]);
   });
 
+  it("preserves section anchors while canonicalizing wikilink targets", () => {
+    const result = repairWikilinkText(
+      "See [[Company Strategy Comparison#Capital Requirements]] and [[Company Strategy Comparison#Risks|risk details]].",
+      [
+        {
+          filename: "company-strategy-comparison.md",
+          title: "Company Strategy Comparison",
+        },
+      ],
+      "page.md",
+    );
+
+    expect(result.text).toBe(
+      "See [[company-strategy-comparison#Capital Requirements]] and [[company-strategy-comparison#Risks|risk details]].",
+    );
+  });
+
   it("repairs workspace pages and records page line numbers", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "llm-wiki-repair-"));
     await mkdir(path.join(root, "sources"), { recursive: true });

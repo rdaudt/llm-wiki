@@ -13,6 +13,9 @@ from streamlit.testing.v1 import AppTest
 def adapter() -> None:
     environment = os.environ.copy()
     environment.pop("OPENAI_API_KEY", None)
+    environment["ADAPTER_PORT"] = "14310"
+    previous_url = os.environ.get("WIKI_ADAPTER_URL")
+    os.environ["WIKI_ADAPTER_URL"] = "http://127.0.0.1:14310"
     with tempfile.TemporaryDirectory(prefix="llm-wiki-streamlit-test-") as runtime:
         environment["WIKI_VAR_ROOT"] = runtime
         process = subprocess.Popen(  # noqa: S603
@@ -26,16 +29,22 @@ def adapter() -> None:
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
             try:
-                with urllib.request.urlopen("http://127.0.0.1:4310/health", timeout=1):  # noqa: S310
+                with urllib.request.urlopen("http://127.0.0.1:14310/health", timeout=1):  # noqa: S310
                     break
             except OSError:
                 time.sleep(0.2)
         else:
             process.terminate()
             pytest.fail("adapter did not become healthy")
-        yield
-        process.terminate()
-        process.wait(timeout=10)
+        try:
+            yield
+        finally:
+            process.terminate()
+            process.wait(timeout=10)
+            if previous_url is None:
+                os.environ.pop("WIKI_ADAPTER_URL", None)
+            else:
+                os.environ["WIKI_ADAPTER_URL"] = previous_url
 
 
 def test_empty_state_offers_staged_controls_and_native_viewer(adapter: None) -> None:

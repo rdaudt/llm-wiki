@@ -80,7 +80,13 @@ export function repairWikilinkText(
     wikilinkPattern,
     (before, inner: string, offset: number) => {
       const [targetWithAnchor, explicitLabel] = inner.split("|", 2);
-      const target = targetWithAnchor!.split("#", 1)[0]!.trim();
+      const anchorIndex = targetWithAnchor!.indexOf("#");
+      const target =
+        anchorIndex === -1
+          ? targetWithAnchor!.trim()
+          : targetWithAnchor!.slice(0, anchorIndex).trim();
+      const anchor =
+        anchorIndex === -1 ? "" : targetWithAnchor!.slice(anchorIndex).trim();
       const display = (explicitLabel ?? target).trim();
       const targetAlias = alias(target);
       const matches = pages.filter((candidate) => {
@@ -91,8 +97,8 @@ export function repairWikilinkText(
         const canonical = matches[0]!.filename.replace(/\.md$/i, "");
         const after =
           explicitLabel === undefined
-            ? `[[${canonical}]]`
-            : `[[${canonical}|${display}]]`;
+            ? `[[${canonical}${anchor}]]`
+            : `[[${canonical}${anchor}|${display}]]`;
         if (after !== before) {
           repairs.push({
             page,

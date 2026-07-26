@@ -89,6 +89,10 @@ export interface StagedBuildService {
     signal?: AbortSignal,
   ): Promise<BuildState>;
   runQuality(buildId: string, operationId?: string): Promise<BuildState>;
+  setKnowledgeStage(
+    buildId: string,
+    knowledgeStage: KnowledgeStage,
+  ): Promise<BuildState>;
   getLatestQuality(buildId: string): Promise<QualityArtifact>;
   getArtifact(buildId: string, artifactPath: string): Promise<unknown>;
   runPublish(buildId: string): Promise<BuildState>;
@@ -372,9 +376,18 @@ export function createApp(options: AppOptions) {
           controller.signal,
         );
         if (timedOut) throw new Error("operation deadline exceeded");
+        const nextKnowledgeStage: KnowledgeStage =
+          type === "baseline" ? "baseline" : "post_delta";
+        if (options.buildService) {
+          const build = await options.buildService.getOrCreateBaseline();
+          await options.buildService.setKnowledgeStage(
+            build.buildId,
+            nextKnowledgeStage,
+          );
+        }
         record.status = "completed";
         record.completedAt = new Date().toISOString();
-        knowledgeStage = type === "baseline" ? "baseline" : "post_delta";
+        knowledgeStage = nextKnowledgeStage;
         lastError = undefined;
       } catch (error) {
         record.status = timedOut ? "timed_out" : "failed";
